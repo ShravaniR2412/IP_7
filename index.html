@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Product Catalog</title>
+  <style>
+    /* CSS Styling */
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    header {
+      background-color: #333;
+      color: #fff;
+      padding: 10px 0;
+      text-align: center;
+    }
+
+    .container {
+      width: 90%;
+      margin: auto;
+      overflow: hidden;
+      padding: 20px 0;
+    }
+
+    .search-bar {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .search-bar input[type="text"],
+    .search-bar input[type="number"] {
+      padding: 10px;
+      width: 200px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .search-bar button {
+      padding: 10px 20px;
+      border: none;
+      background-color: #333;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .search-bar button:hover {
+      background-color: #555;
+    }
+
+    .products {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .product-card {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 15px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s;
+    }
+
+    .product-card:hover {
+      transform: scale(1.02);
+    }
+
+    .product-card img {
+      max-width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 5px;
+    }
+
+    .product-info {
+      margin-top: 10px;
+    }
+
+    .product-info h3 {
+      margin: 0 0 10px 0;
+      font-size: 1.2em;
+    }
+
+    .product-info p {
+      margin: 5px 0;
+      color: #555;
+    }
+
+    /* Modal Styling */
+    .modal {
+      display: none;
+      /* Hidden by default */
+      position: fixed;
+      /* Stay in place */
+      z-index: 1000;
+      /* Sit on top */
+      left: 0;
+      top: 0;
+      width: 100%;
+      /* Full width */
+      height: 100%;
+      /* Full height */
+      overflow: auto;
+      /* Enable scroll if needed */
+      background-color: rgba(0, 0, 0, 0.5);
+      /* Black w/ opacity */
+    }
+
+    .modal-content {
+      background-color: #fefefe;
+      margin: 5% auto;
+      /* 5% from the top and centered */
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 600px;
+      /* Could be more or less, depending on screen size */
+      border-radius: 5px;
+      position: relative;
+    }
+
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      position: absolute;
+      right: 20px;
+      top: 10px;
+      cursor: pointer;
+    }
+
+    .close:hover,
+    .close:focus {
+      color: black;
+      text-decoration: none;
+    }
+
+    @media (max-width: 600px) {
+      .search-bar {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .search-bar input[type="text"],
+      .search-bar input[type="number"] {
+        width: 100%;
+        max-width: 300px;
+      }
+
+      .search-bar button {
+        width: 100%;
+        max-width: 150px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Product Catalog</h1>
+  </header>
+
+  <div class="container">
+    <!-- Search Bar -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search by name...">
+      <input type="number" id="minPriceInput" placeholder="Min Price..." step="0.01">
+      <input type="number" id="maxPriceInput" placeholder="Max Price..." step="0.01">
+      <button id="searchButton">Search</button>
+    </div>
+
+    <!-- Products Grid -->
+    <div class="products" id="productsContainer">
+      <!-- Product cards will be injected here -->
+    </div>
+  </div>
+
+  <!-- Modal for Product Details -->
+  <div id="productModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <img id="modalImage" src="" alt="Product Image" style="width:100%; height:auto; border-radius:5px;">
+      <div class="product-info">
+        <h2 id="modalName"></h2>
+        <p id="modalPrice"></p>
+        <p id="modalDesc"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // JavaScript Functionality
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const productsContainer = document.getElementById('productsContainer');
+      const searchButton = document.getElementById('searchButton');
+      const searchInput = document.getElementById('searchInput');
+      const minPriceInput = document.getElementById('minPriceInput'); // Fixed reference
+      const maxPriceInput = document.getElementById('maxPriceInput'); // Fixed reference
+
+      const modal = document.getElementById('productModal');
+      const closeModal = document.getElementsByClassName('close')[0];
+      const modalImage = document.getElementById('modalImage');
+      const modalName = document.getElementById('modalName');
+      const modalPrice = document.getElementById('modalPrice');
+      const modalDesc = document.getElementById('modalDesc');
+
+      // Function to fetch and display products
+      const fetchProducts = async (search = '', minPrice = '', maxPrice = '') => {
+        let url = '/api/products'; // Relative URL
+
+        const queryParams = new URLSearchParams();
+        if (search) queryParams.append('search', search);
+        if (minPrice) queryParams.append('minPrice', minPrice);
+        if (maxPrice) queryParams.append('maxPrice', maxPrice);
+        url = `/api/v1/query?${queryParams.toString()}`;
+
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          displayProducts(data);
+        } catch (error) {
+          console.error('Error fetching products:', error);
+          productsContainer.innerHTML = '<p style="color:red;">Failed to load products.</p>';
+        }
+      };
+
+      // Event listener for search button
+      searchButton.addEventListener('click', () => {
+        const searchValue = searchInput.value.trim();
+        const minPriceValue = minPriceInput.value.trim();
+        const maxPriceValue = maxPriceInput.value.trim();
+        fetchProducts(searchValue, minPriceValue, maxPriceValue);
+      });
+
+      // Function to display products
+      const displayProducts = (products) => {
+        if (Array.isArray(products) && products.length > 0) {
+          productsContainer.innerHTML = products.map(product => `
+            <div class="product-card" data-id="${product.id}">
+              <img src="${product.image}" alt="${product.name}">
+              <div class="product-info">
+                <h3>${capitalize(product.name)}</h3>
+                ${product.price !== undefined ? `<p>Price: $${product.price.toFixed(2)}</p>` : '<p>Price: N/A</p>'}
+              </div>
+            </div>
+          `).join('');
+        } else {
+          productsContainer.innerHTML = '<p>No products found.</p>';
+        }
+      };
+
+      // Function to capitalize first letter
+      const capitalize = (str) => {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+      };
+
+      // Event delegation for product cards
+      productsContainer.addEventListener('click', async (e) => {
+        const card = e.target.closest('.product-card');
+        if (card) {
+          const productId = card.getAttribute('data-id');
+          try {
+            const response = await fetch(`/api/products/${productId}`);
+            const product = await response.json();
+            showModal(product);
+          } catch (error) {
+            console.error('Error fetching product details:', error);
+          }
+        }
+      });
+
+      // Function to show modal
+      const showModal = (product) => {
+        modalImage.src = product.image;
+        modalName.textContent = product.name;
+        modalPrice.textContent = `Price: $${product.price.toFixed(2)}`;
+        modalDesc.textContent = product.description;
+        modal.style.display = 'block';
+      };
+
+      // Event listener to close modal
+      closeModal.onclick = () => {
+        modal.style.display = 'none';
+      };
+
+      window.onclick = (event) => {
+        if (event.target == modal) {
+          modal.style.display = 'none';
+        }
+      };
+
+      // Initial product fetch
+      fetchProducts();
+    });
+  </script>
+</body>
+
+</html>
